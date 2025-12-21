@@ -1,3 +1,35 @@
+import requests
+from bs4 import BeautifulSoup
+from datetime import datetime
+import re
+
+URL = "https://www.novaler.com/downloads/enigma2-backups2/multibox-4k-pro-ultra-hd"
+
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
+}
+
+response = requests.get(URL, headers=headers)
+response.raise_for_status()
+soup = BeautifulSoup(response.text, 'html.parser')
+
+# Trouve tous les liens .zip
+zip_links = []
+for a in soup.find_all('a', href=True):
+    href = a['href']
+    if href.endswith('.zip'):
+        full_url = "https://www.novaler.com" + href if href.startswith('/uploads/') else href
+        filename = href.split('/')[-1]
+        zip_links.append((filename, full_url))
+
+# Trie par date dans le nom de fichier (du plus récent au plus ancien)
+def extract_date(filename):
+    match = re.search(r'(\d{8})', filename)
+    return match.group(1) if match else '00000000'
+
+zip_links.sort(key=lambda x: extract_date(x[0]), reverse=True)
+
+# Génère les noms comme dans l'exemple
 def generate_name(filename):
     # Extrait la date d'abord
     date_match = re.search(r'(\d{8})', filename)
