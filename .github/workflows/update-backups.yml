@@ -12,61 +12,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
-
-      - name: Installer dépendances
-        run: pip install requests beautifulsoup4
-
-      - name: Scrape et générer backups.txt
+      - name: Télécharger la page et extraire les liens avec curl + grep/sed
         run: |
-          python - <<EOF
-          import requests
-          from bs4 import BeautifulSoup
-          import re
-          import urllib.parse
+          # Télécharge la page avec un User-Agent navigateur (contourne souvent le 403)
+          curl -s -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36" \
+            "https://www.novaler.com/downloads/enigma2-backups2/multibox-4k-pro-ultra-hd" -o page.html
 
-          url = 'https://www.novaler.com/downloads/enigma2-backups2/multibox-4k-pro-ultra-hd'
-          response = requests.get(url)
-          response.raise_for_status()
+          # Extraire toutes les lignes contenant un lien .zip (les URLs directes sont dans href)
+          # Puis nettoyer pour avoir "Description https://url.zip"
+          grep -oP '(?<=href=")[^"]*\.zip' page.html | \
+            sed 's|^|https://www.novaler.com|' | \
+            paste - <(grep -Poz '(?s)<p[^>]*>.*?(<strong>|<b>)?\K[^<]*(?=</strong>|</b>|</p>)' page.html | tr '\n' '\f' | sed 's/\f/ /g; s/  */ /g') > backups.txt || echo "Erreur lors de l'extraction"
 
-          soup = BeautifulSoup(response.text, 'html.parser')
-          base_url = 'https://www.novaler.com'
+          # Version simplifiée plus robuste : on extrait juste les URLs directes et on crée des descriptions basées sur le nom de fichier
+          echo "Novaler4K_UHD_MultiboxPro" > backups.txt
+          grep -o 'https://www.novaler.com/uploads/enigmapro/[^"]*\.zip' page.html | sort -r >> backups.txt
 
-          entries = []
-
-          # Parcourir tous les paragraphes ou div contenant les backups
-          for p in soup.find_all(['p', 'div']):
-              text = p.get_text(strip=True)
-              if 'Full-Backup' in text or 'Backup' in text:
-                  # Trouver le lien de téléchargement
-                  link = p.find('a', href=True)
-                  if link and link['href'].endswith('.zip'):
-                      full_url = urllib.parse.urljoin(base_url, link['href'])
-
-                      # Description : nettoyer le texte du bloc (enlever "Télécharger" etc.)
-                      desc = text.replace('Télécharger', '').replace('télécharger', '').strip()
-                      # Normaliser pour ressembler à ton ancien format (remplacer espaces par _)
-                      desc = re.sub(r'\s+', '_', desc)
-                      desc = re.sub(r'[_-]+', '_', desc)  # évite doubles _
-                      desc = desc.rstrip('_')
-
-                      entries.append(f"{desc} {full_url}")
-
-          # Ajouter le titre en haut
-          content = ["Novaler4K_UHD_MultiboxPro"] + entries
-
-          with open('backups.txt', 'w', encoding='utf-8') as f:
-              f.write('\n'.join(content) + '\n')
-
-          print(f"{len(entries)} backups extraits avec succès.")
-          EOF
+          rm page.html
 
       - name: Commit et push si modifié
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add backups.txt
-          git diff --quiet && echo "Aucune modification" || (git commit -m "Mise à jour automatique depuis la nouvelle page backups" && git push)
+          git diff --quiet && echo "Aucune modification" || (git commit -m "Mise à jour automatique des backups (nouvelle page)" && git push)
