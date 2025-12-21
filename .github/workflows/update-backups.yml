@@ -1,38 +1,27 @@
-name: Mise à jour automatique de la liste des backups (nouvelle page)
+name: Mise à jour automatique de la liste des backups
 
 on:
   schedule:
-    - cron: '0 6 * * *'  # Tous les jours à 6h UTC
-  workflow_dispatch:     # Lancement manuel
+    - cron: '0 6 * * *'
+  workflow_dispatch:
 
 jobs:
   update-backups:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Télécharger la page et extraire les liens avec curl + grep/sed
+      - name: Générer backups.txt avec liens directs
         run: |
-          # Télécharge la page avec un User-Agent navigateur (contourne souvent le 403)
-          curl -s -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36" \
-            "https://www.novaler.com/downloads/enigma2-backups2/multibox-4k-pro-ultra-hd" -o page.html
-
-          # Extraire toutes les lignes contenant un lien .zip (les URLs directes sont dans href)
-          # Puis nettoyer pour avoir "Description https://url.zip"
-          grep -oP '(?<=href=")[^"]*\.zip' page.html | \
-            sed 's|^|https://www.novaler.com|' | \
-            paste - <(grep -Poz '(?s)<p[^>]*>.*?(<strong>|<b>)?\K[^<]*(?=</strong>|</b>|</p>)' page.html | tr '\n' '\f' | sed 's/\f/ /g; s/  */ /g') > backups.txt || echo "Erreur lors de l'extraction"
-
-          # Version simplifiée plus robuste : on extrait juste les URLs directes et on crée des descriptions basées sur le nom de fichier
           echo "Novaler4K_UHD_MultiboxPro" > backups.txt
-          grep -o 'https://www.novaler.com/uploads/enigmapro/[^"]*\.zip' page.html | sort -r >> backups.txt
+          curl -s -L -A "Mozilla/5.0" "https://www.novaler.com/downloads/enigma2-backups2/multibox-4k-pro-ultra-hd" | \
+            grep -o 'https://www.novaler.com/uploads/enigmapro/[^"]*\.zip' | \
+            sort -r >> backups.txt   # sort -r pour les plus récents en haut
 
-          rm page.html
-
-      - name: Commit et push si modifié
+      - name: Commit et push
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
           git add backups.txt
-          git diff --quiet && echo "Aucune modification" || (git commit -m "Mise à jour automatique des backups (nouvelle page)" && git push)
+          git diff --quiet && echo "Pas de changement" || (git commit -m "Mise à jour backups" && git push)
