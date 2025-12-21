@@ -1,5 +1,5 @@
 Novaler4K_UHD_MultiboxPro
-BackUp_Py3.12_OpenVIX_6.5_20240425 https://novaler.com/uploads/enigmapro/openvix/openvix-6.5-003-novaler4kpro-backup-20240425_mmc.zip
+OpenPli Py 3.12 https://www.novaler.com/uploads/enigmapro/openpli/openpli-10.1-novaler4kpro-backup-20251211_usb.zip
 BackUp_Py3.12_OpenBlackHole_5.4_20240424 https://novaler.com/uploads/enigmapro/openbh/openbh-5.4-003-novaler4kpro-backup-20240424.zip
 BackUp_Py3.12_Egami_10.5_20240423 https://novaler.com/uploads/enigmapro/egami/egami-10.5.r4-novaler4kpro-backup-20240423_usb.zip
 BackUp_Py3.12_OpenATV_7.4_20240423 https://novaler.com/uploads/enigmapro/openatv/openatv-7.4-novaler4kpro-backup-20240423_usb.zip
