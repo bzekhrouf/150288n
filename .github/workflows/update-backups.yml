@@ -1,0 +1,76 @@
+name: Mise à jour automatique de la liste des backups (nouvelle page)
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Tous les jours à 6h UTC
+  workflow_dispatch:     # Lancement manuel
+
+jobs:
+  update-backups:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Scrape et générer backups.txt
+        run: |
+          python - <<EOF
+          import requests
+          from bs4 import BeautifulSoup
+          import re
+
+          url = 'https://www.novaler.com/downloads/enigma2-backups2/multibox-4k-pro-ultra-hd'
+          response = requests.get(url)
+          response.raise_for_status()
+
+          soup = BeautifulSoup(response.text, 'html.parser')
+
+          # Trouver tous les blocs de backup (chaque entrée a un titre bold + lien download)
+          entries = []
+          base_url = 'https://www.novaler.com'
+
+          # Les titres sont en <strong> ou <b>, les liens download en <a> avec "Télécharger"
+          for item in soup.find_all(['div', 'p', 'h3', 'h4']):  # blocs possibles
+              strong = item.find(['strong', 'b'])
+              link = item.find('a', string=re.compile('Télécharger', re.I))
+              if strong and link:
+                  title = strong.get_text(strip=True)
+                  date_match = re.search(r'(\d{2}/\d{2}/\d{4})', item.get_text())
+                  date = date_match.group(1) if date_match else ''
+                  version_match = re.search(r'Python\s*([\d\.]+)', item.get_text())
+                  version = version_match.group(1) if version_match else ''
+
+                  # Construire une description propre (ex: OpenVIX_6.8_20251208)
+                  desc = title.replace(' ', '_').replace('-', '_').replace('__', '_')
+                  desc = re.sub(r'_Full-Backup.*$', '', desc)
+                  if date:
+                      desc += '_' + date.replace('/', '')
+                  if version:
+                      desc = desc.replace('Python_', 'Py') + f'_Py{version.replace(".", "")}'
+
+                  href = link['href']
+                  full_url = href if href.startswith('http') else base_url + href
+
+                  entries.append(f"{desc} {full_url}")
+
+          # Titre en haut
+          content = ["Novaler4K_UHD_MultiboxPro"] + entries
+
+          # Écrire le fichier
+          with open('backups.txt', 'w', encoding='utf-8') as f:
+              f.write('\n'.join(content) + '\n')
+
+          print(f"{len(entries)} backups extraits et sauvegardés.")
+          EOF
+
+      - name: Commit et push si modifié
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add backups.txt
+          git diff --quiet && echo "Aucune modification" || (git commit -m "Mise à jour automatique depuis nouvelle page" && git push)
