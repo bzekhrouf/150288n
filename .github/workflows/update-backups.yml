@@ -17,11 +17,11 @@ jobs:
           echo "Novaler4K_UHD_MultiboxPro" > backups.txt
           curl -s -L -A "Mozilla/5.0" "https://www.novaler.com/downloads/enigma2-backups2/multibox-4k-pro-ultra-hd" | \
             grep -o 'https://www.novaler.com/uploads/enigmapro/[^"]*\.zip' | \
-            sort -r >> backups.txt   # sort -r pour les plus récents en haut
+            sort -r >> 1.txt   # sort -r pour les plus récents en haut
 
       - name: Commit et push
         run: |
           git config user.email "action@github.com"
           git config user.name "GitHub Action"
-          git add backups.txt
+          git add 1.txt
           git diff --quiet && echo "Pas de changement" || (git commit -m "Mise à jour backups" && git push)
